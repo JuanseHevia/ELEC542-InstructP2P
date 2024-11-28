@@ -1,0 +1,13 @@
+torch
+torchvision
+numpy
+diffusers
+transformers
+huggingface_hub
+requests
+Pillow
+
+accelerate
+matplotlib
+tqdm
+pandas
