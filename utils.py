@@ -7,17 +7,18 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import json
 
-DATA_DIR = "data/test-MagicBrush/test"
+# DATA_DIR = "data/test-MagicBrush/test"
 
 class EditTurn:
 
-    def __init__(self, sample):
+    def __init__(self, sample, data_dir):
         self.image_id = sample["input"].split("-")[0]
         self._input = sample["input"]
         self._output = sample["output"]
         self._mask = sample["mask"]
         self._instruction = sample["instruction"]
         self._input_description = ""
+        self.data_dir = data_dir
 
     def _get_input_description(self, glb_descriptions):
         """
@@ -41,54 +42,9 @@ class EditTurn:
             "desdcription": self._input_description
         }
 
-    def plot(self):
-        """
-        Plots the input, output, and mask images side by side for comparison.
-        This method creates a figure with three subplots:
-        - The first subplot displays the input image.
-        - The second subplot displays the output image.
-        - The third subplot displays the mask image.
-        Each subplot is titled accordingly, and the axes are turned off for better visualization.
-        The figure also includes a main title that describes the instruction associated with the images.
-        Attributes:
-            self.image_id (str): The identifier for the image set.
-            self._input (str): The filename of the input image.
-            self._output (str): The filename of the output image.
-            self._mask (str): The filename of the mask image.
-            self._instruction (str): The instruction or description related to the images.
-        Raises:
-            FileNotFoundError: If any of the image files cannot be found in the specified directory.
-        """
-
-        fig ,ax = plt.subplots(1, 3, figsize=(15, 5))
-
-        # before
-        img = Image.open(os.path.join(DATA_DIR, f"images/{self.image_id}", self._input))
-        ax[0].imshow(img)
-        ax[0].set_title("input")
-
-
-        # after
-        img = Image.open(os.path.join(DATA_DIR, f"images/{self.image_id}", self._output))
-        ax[1].imshow(img)
-        ax[1].set_title("output")
-
-
-        # mask
-        img = Image.open(os.path.join(DATA_DIR, f"images/{self.image_id}", self._mask))
-        ax[2].imshow(img)
-        ax[2].set_title("mask")
-
-        for sax in ax:
-            sax.axis("off")
-
-        fig.suptitle(self._instruction)
-
-        plt.show()
-
 class MBDataset:
 
-    def __init__(self, data_dir: str = DATA_DIR):
+    def __init__(self, data_dir: str):
         self.data_dir = data_dir
 
         # load edit turns
@@ -101,7 +57,7 @@ class MBDataset:
             _data = json.load(f)
             print("Loading edit turns...")
             for sample in tqdm(_data):
-                edit_turn = EditTurn(sample)
+                edit_turn = EditTurn(sample, data_dir)
                 edit_turn._get_input_description(_global_description)
                 self.edit_turns.append(edit_turn)
 
@@ -134,7 +90,7 @@ class MBDataset:
                               columns=["image", "description"])
         inputs = inputs.dropna().drop_duplicates()
         inputs["image_id"] = inputs["image"].apply(lambda x: x.split("-")[0])
-        inputs["image_path"] = inputs["image"].apply(lambda x: os.path.join(DATA_DIR, f"images/{x.split('-')[0]}", x))
+        inputs["image_path"] = inputs["image"].apply(lambda x: os.path.join(self.data_dir, f"images/{x.split('-')[0]}", x))
 
         return inputs
     
@@ -158,3 +114,44 @@ class MBDataset:
                     })
 
         return pd.DataFrame(img_tuples)
+    
+    def plot(self, idx):
+        """
+        Plots the input, output, and mask images side by side for comparison for a given edit turn index.
+        This method creates a figure with three subplots:
+        - The first subplot displays the input image.
+        - The second subplot displays the output image.
+        - The third subplot displays the mask image.
+        Each subplot is titled accordingly, and the axes are turned off for better visualization.
+        The figure also includes a main title that describes the instruction associated with the images.
+        Parameters:
+            idx (int): The index of the edit turn in the edit_turns list.
+        Raises:
+            FileNotFoundError: If any of the image files cannot be found in the specified directory.
+        """
+
+        edit_turn = self.edit_turns[idx]
+
+        fig, ax = plt.subplots(1, 3, figsize=(15, 5))
+
+        # before
+        img = Image.open(os.path.join(self.data_dir, f"images/{edit_turn.image_id}", edit_turn._input))
+        ax[0].imshow(img)
+        ax[0].set_title("input")
+
+        # after
+        img = Image.open(os.path.join(self.data_dir, f"images/{edit_turn.image_id}", edit_turn._output))
+        ax[1].imshow(img)
+        ax[1].set_title("output")
+
+        # mask
+        img = Image.open(os.path.join(self.data_dir, f"images/{edit_turn.image_id}", edit_turn._mask))
+        ax[2].imshow(img)
+        ax[2].set_title("mask")
+
+        for sax in ax:
+            sax.axis("off")
+
+        fig.suptitle(edit_turn._instruction)
+
+        plt.show()
