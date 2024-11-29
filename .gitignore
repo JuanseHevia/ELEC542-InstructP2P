@@ -1,3 +1,5 @@
 *.zip
 data/
 .venv
+results/
+__pycache__/
