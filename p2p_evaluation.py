@@ -1,4 +1,5 @@
 import utils
+import pandas as pd
 import argparse
 from diffusers import StableDiffusionInstructPix2PixPipeline
 import torch
@@ -6,6 +7,11 @@ import json
 from tqdm import tqdm
 import os
 from PIL import Image
+
+import logging
+logging.getLogger("diffusers").setLevel(logging.ERROR) 
+# or
+logging.getLogger("diffusers").setLevel(logging.WARNING)
 
 
 def evaluate(args):
@@ -18,21 +24,32 @@ def evaluate(args):
     evaluation_dataset = dataset.build_evaluation_dataset()
 
     # sample dataset
-    evaluation_dataset = evaluation_dataset.sample(n=args.sample_size)
-
+    # evaluation_dataset = evaluation_dataset.sample(n=args.sample_size)
+    color_ds = evaluation_dataset[evaluation_dataset.prompt_type == "color"].head(args.sample_size//2)
+    concp_ds = evaluation_dataset[evaluation_dataset.prompt_type == "conceptual"].head(args.sample_size//2)
+    
+    data = pd.concat([color_ds, concp_ds], axis=0)
+    print(data.info())
+    print(data.sample(5))
+    print("Start evaluation...\n\n\n\n")
     # load pipeline
     pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(
-        "timbrooks/instruct-pix2pix", torch_dtype=torch.float16
+        "timbrooks/instruct-pix2pix", torch_dtype=torch.float16,
+
     )
+    pipe.set_progress_bar_config(disable=True)
     pipe.to(args.device)
 
 
     # run evaluation
     results_json = []
 
-    for idx, row in tqdm(evaluation_dataset.iterrows()):
+    for idx, row in tqdm(data.iterrows()):
         img_path = row.path
         prompt = row.prompt
+
+        # get image ID
+        image_id = img_path.split("/")[-1].split(".")[0].replace("-input", "")
 
         # read image
         _input_image = Image.open(img_path)
@@ -46,6 +63,9 @@ def evaluate(args):
         results_json.append({
             "path": fname,
             "prompt": prompt,
+            "image_path": img_path,
+            "image_id": image_id,
+            "prompt_type": row.prompt_type,
             "evaluation_dataset_idx": idx
         })
 
