@@ -11,3 +11,6 @@ accelerate
 matplotlib
 tqdm
 pandas
+
+scikit-learn
+scikit-image
