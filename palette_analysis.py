@@ -47,17 +47,27 @@ class PaletteAnalysis:
         self.results["dominant_color"] = self.results.dominant_color.apply(
             lambda x: np.array(x))
         
-    def compute_metrics(self):
-        metrics = []
-        for i, row in tqdm(self.results.iterrows()):
-            img = Image.open(os.path.join(self.results_path, "results", row.path))
-            img = np.array(img)
-            original_img = Image.open(os.path.join(self.img_path, row.image_path))
-            original_img = np.array(original_img)
-            cm = ColorMetrics(img, original_img)
-            metrics.append(cm.compare_metrics())
 
-        self.color_metrics = metrics
+    def compute_metric(self, idx: int):
+        row = self.results.iloc[idx]
+        img = Image.open(os.path.join(self.results_path, "results", row.path))
+        img = np.array(img)
+        original_img = Image.open(os.path.join(self.img_path, row.image_path))
+        original_img = np.array(original_img)
+        cm = ColorMetrics(img, original_img)
+        return cm.compare_metrics()
+    
+    def add_metrics(self):
+        metrics = []
+        for idx in range(self.results.shape[0]):
+            _m = self.compute_metric(idx)
+            metrics.append(_m)
+
+        self.metrics = pd.DataFrame({
+            "generated": [m["generated"] for m in metrics],
+            "original": [m["original"] for m in metrics],
+            "idx": list(range(self.results.shape[0]))
+        })
         return metrics
 
     def plot_observation(self, idx: int, add_edit: bool = False, add_original: bool = False, savedir: str = None, fname: str = None):
